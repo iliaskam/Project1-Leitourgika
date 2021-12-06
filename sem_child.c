@@ -16,8 +16,9 @@
 #include <fcntl.h>
 #include<time.h>
 
-#define SEM_NAME1 "prod"
-#define SEM_NAME2 "cons"
+#define SEM_NAME1 "Prod"
+#define SEM_NAME2 "Cons"
+#define SEM_NAME3 "Mutex"
 
 #define TEXT_SIZE 100
 
@@ -46,7 +47,8 @@ void returned_line(FILE* file, int line_num, char buffer[BUFSIZ]) {
 
 int main(int argc, char **argv) {
 
-    printf("%s %s\n", argv[0], argv[1]);
+    int num_of_lines = atoi(argv[0]);
+    int tran = atoi(argv[1]);
 
     void *shared_memory = (void *)0;
     struct shared_use_st *shared_stuff;
@@ -60,9 +62,15 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    sem_t *semaphore2 = sem_open(SEM_NAME2, 1);
+    sem_t *semaphore2 = sem_open(SEM_NAME2, 0);
     if (semaphore2 == SEM_FAILED) {
         perror("sem_open(5) failed");
+        exit(EXIT_FAILURE);
+    }
+
+    sem_t *semaphore3 = sem_open(SEM_NAME3, 0);
+    if (semaphore3 == SEM_FAILED) {
+        perror("sem_open failed");
         exit(EXIT_FAILURE);
     }
     
@@ -81,20 +89,34 @@ int main(int argc, char **argv) {
     printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
 
     shared_stuff = (struct shared_use_st *)shared_memory;
-            
+
+    clock_t begin = clock();
+    srand(time(0) + getpid());
+
+
+    for (int i = 0; i < tran; i++) {        
+        sem_wait(semaphore3);
         sem_wait(semaphore2);
-        printf("Num of lines is: %d\n", atoi(argv[0]));
-        printf("Transactions: %d\n", atoi(argv[1]));
-        srand(time(NULL) + getpid());
-        shared_stuff->written_by_you = 1 + (rand() % atoi(argv[0]));
+        shared_stuff->written_by_you = 1 + (rand() % num_of_lines);
+        printf("Child %d requested line %d from Parent \n", getpid(), shared_stuff->written_by_you);
         sem_post(semaphore1);
         sem_wait(semaphore2);
-        printf("%s", shared_stuff->some_text);
+        printf("Child %d received line : %s", getpid(), shared_stuff->some_text);
         sem_post(semaphore2);
-       
-    
+        sem_post(semaphore3);  
+    }
+    clock_t end = clock();
+    double time= ((double)end - (double)begin)/CLOCKS_PER_SEC;
+    printf("Average serve time for child %d : %f\n", getpid(), time);
+
     sem_close(semaphore1);
     sem_close(semaphore2);
+    sem_close(semaphore3);
 
-    return 0;
+    if (shmdt(shared_memory) == -1) {
+		fprintf(stderr, "shmdt failed\n");
+		exit(EXIT_FAILURE);
+	}
+
+    exit(EXIT_SUCCESS);
 }

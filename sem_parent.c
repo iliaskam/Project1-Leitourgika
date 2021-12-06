@@ -17,8 +17,9 @@
 
 #define CHILD_PROGRAM "./sem_child"
 
-#define SEM_NAME1 "prod"
-#define SEM_NAME2 "cons"
+#define SEM_NAME1 "Prod"
+#define SEM_NAME2 "Cons"
+#define SEM_NAME3 "Mutex"
 
 #define TEXT_SIZE 100
 
@@ -28,7 +29,7 @@ struct shared_use_st {
 };
 
 int file_lines(FILE* file) {
-    char line[100];
+    char line[TEXT_SIZE];
     int count = 0;
     while (fgets(line, sizeof(line), file))
         count++;
@@ -48,10 +49,17 @@ int main(int argc, char **argv) {
 
     FILE* X = fopen(argv[1], "r");
     int K = atoi(argv[2]);  // Number of kids
-    
-    //int lines_of_file = file_lines(X);
 
-    char* args[] = {"11", argv[3], NULL};
+    
+    int lines_of_file = 11;//file_lines(X);
+    //char* temp = NULL;
+    //sprintf(temp, "%d", lines_of_file);
+
+    char str[10];
+
+    sprintf(str, "%d", lines_of_file);
+
+    char* args[] = {str, argv[3], NULL};
 
     int pids[K];
 
@@ -64,20 +72,30 @@ int main(int argc, char **argv) {
 
     sem_unlink(SEM_NAME1);
     sem_unlink(SEM_NAME2);
+    sem_unlink(SEM_NAME3);
 
     //  Create Semaphores
 
     sem_t *semaphore1 = sem_open(SEM_NAME1, O_CREAT | O_RDWR, 0660, 0);
     if (semaphore1 == SEM_FAILED) {
-        perror("sem_open(3) failed");
+        perror("sem_open failed");
         exit(EXIT_FAILURE);
     }
 
     sem_t *semaphore2 = sem_open(SEM_NAME2, O_CREAT | O_RDWR, 0660, 1);
     if (semaphore2 == SEM_FAILED) {
-        perror("sem_open(3) failed");
+        perror("sem_open failed");
         exit(EXIT_FAILURE);
     }
+
+    sem_t *semaphore3 = sem_open(SEM_NAME3, O_CREAT | O_RDWR, 0660, 1);
+    if (semaphore3 == SEM_FAILED) {
+        perror("sem_open failed");
+        exit(EXIT_FAILURE);
+    }
+
+    sem_close(semaphore3);  //  Close the semaphore as we won't be using it in the parent process
+
     
     //  Create Shared Memory 
 
@@ -110,13 +128,14 @@ int main(int argc, char **argv) {
        
         //  Parent Process 
          
-        sem_wait(semaphore1);
-        printf("Child want line %d\n", shared_stuff->written_by_you);
-        rewind(X);
-        returned_line(X, shared_stuff->written_by_you, buffer);
-        //printf("%s", buffer);
-        strcpy(shared_stuff->some_text, buffer);
-        sem_post(semaphore2);
+        for (int i = 0; i < atoi(argv[3]); i++){
+         
+            sem_wait(semaphore1);
+            rewind(X);
+            returned_line(X, shared_stuff->written_by_you, buffer);
+            strcpy(shared_stuff->some_text, buffer);
+            sem_post(semaphore2);
+        }
     }
 
     for (int i = 0; i < K; i++) { 
@@ -129,8 +148,16 @@ int main(int argc, char **argv) {
     if (sem_unlink(SEM_NAME2) < 0) {
         perror("sem_unlink(3) failed");
     }
+    if (sem_unlink(SEM_NAME3) < 0) {
+        perror("sem_unlink(3) failed");
+    }
     sem_close(semaphore1);
     sem_close(semaphore2);
+
+    if (shmdt(shared_memory) == -1) {
+		fprintf(stderr, "shmdt failed\n");
+		exit(EXIT_FAILURE);
+	}
 
     fclose(X);
     return 0;
