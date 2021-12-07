@@ -22,33 +22,17 @@
 
 #define TEXT_SIZE 100
 
-struct shared_use_st {
+struct shared_use_st {      // Shared memory variables
     int written_by_you;
     char some_text[TEXT_SIZE];
 };
 
-int file_lines(FILE* file) {
-    char line[100];
-    int count = 0;
-    while (fgets(line, sizeof(line), file))
-        count++;
-    return count;
-}
-
-void returned_line(FILE* file, int line_num, char buffer[BUFSIZ]) {
-    int count = 0;
-    while(count != line_num) {
-        fgets(buffer, BUFSIZ, file);
-        count++;
-    }
-}
-
-
-
 int main(int argc, char **argv) {
 
-    int num_of_lines = atoi(argv[0]);
-    int tran = atoi(argv[1]);
+    int num_of_lines = atoi(argv[0]);   // Number of lines
+    int tran = atoi(argv[1]);   // Number of transactions
+
+    // Shared memory variables
 
     void *shared_memory = (void *)0;
     struct shared_use_st *shared_stuff;
@@ -90,28 +74,38 @@ int main(int argc, char **argv) {
 
     shared_stuff = (struct shared_use_st *)shared_memory;
 
+    // Start clock and set srand
+
     clock_t begin = clock();
     srand(time(0) + getpid());
 
+    // Repeat the loop to match the number of transactions
 
     for (int i = 0; i < tran; i++) {        
-        sem_wait(semaphore3);
-        sem_wait(semaphore2);
+        sem_wait(semaphore3);   // lock
+        sem_wait(semaphore2);   // 
         shared_stuff->written_by_you = 1 + (rand() % num_of_lines);
         printf("Child %d requested line %d from Parent \n", getpid(), shared_stuff->written_by_you);
-        sem_post(semaphore1);
-        sem_wait(semaphore2);
+        sem_post(semaphore1);   // Post when child make his request
+        sem_wait(semaphore2);   // Wait the response from parent
         printf("Child %d received line : %s", getpid(), shared_stuff->some_text);
-        sem_post(semaphore2);
-        sem_post(semaphore3);  
+        sem_post(semaphore2);   // We post so the value of semaphore2 is 1 and the next transaction/child start immediatly
+        sem_post(semaphore3);   // unlock
     }
+
+    // Stop the clock when child process end and print results
+
     clock_t end = clock();
     double time= ((double)end - (double)begin)/CLOCKS_PER_SEC;
     printf("Average serve time for child %d : %f\n", getpid(), time);
 
+    // Close semaphores
+
     sem_close(semaphore1);
     sem_close(semaphore2);
     sem_close(semaphore3);
+
+    // Detach shared memory
 
     if (shmdt(shared_memory) == -1) {
 		fprintf(stderr, "shmdt failed\n");

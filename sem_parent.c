@@ -23,12 +23,12 @@
 
 #define TEXT_SIZE 100
 
-struct shared_use_st {
+struct shared_use_st {     // Shared memory variables
     int written_by_you;
     char some_text[TEXT_SIZE];
 };
 
-int file_lines(FILE* file) {
+int file_lines(FILE* file) {    // Fuction to count the lines of a file
     char line[TEXT_SIZE];
     int count = 0;
     while (fgets(line, sizeof(line), file))
@@ -36,7 +36,7 @@ int file_lines(FILE* file) {
     return count;
 }
 
-void returned_line(FILE* file, int line_num, char buffer[BUFSIZ]) {
+void returned_line(FILE* file, int line_num, char buffer[BUFSIZ]) {     // Function which loads to the buffer a specific line from a file
     int count = 0;
     while(count != line_num) {
         fgets(buffer, BUFSIZ, file);
@@ -47,21 +47,18 @@ void returned_line(FILE* file, int line_num, char buffer[BUFSIZ]) {
 
 int main(int argc, char **argv) {
 
-    FILE* X = fopen(argv[1], "r");
+    FILE* X = fopen(argv[1], "r");  // Open my file 
     int K = atoi(argv[2]);  // Number of kids
-
-    
-    int lines_of_file = 11;//file_lines(X);
-    //char* temp = NULL;
-    //sprintf(temp, "%d", lines_of_file);
-
+  
+    int lines_of_file = file_lines(X);  // Find file number of lines
     char str[10];
+    sprintf(str, "%d", lines_of_file);  // Convert integer to string and pass it as an argument to child process
 
-    sprintf(str, "%d", lines_of_file);
-
-    char* args[] = {str, argv[3], NULL};
+    char* args[] = {str, argv[3], NULL};    // Arguments file child process
 
     int pids[K];
+
+    // Shared memory variables
 
     void *shared_memory = (void *)0;
     struct shared_use_st *shared_stuff;
@@ -113,13 +110,14 @@ int main(int argc, char **argv) {
 
     shared_stuff = (struct shared_use_st *)shared_memory;
 
+    // Create K number of child processes
 
     for (int i = 0; i < K; i++) {
         pids[i] = fork();
 
         //  Child Process 
 
-        if (pids[i] == 0) { 
+        if (pids[i] == 0) {     // If fork returns 0 we are on the child process
             if (execv(CHILD_PROGRAM, args) < 0) {
                 perror("execl(10) failed");
                 exit(EXIT_FAILURE);
@@ -128,19 +126,21 @@ int main(int argc, char **argv) {
        
         //  Parent Process 
          
-        for (int i = 0; i < atoi(argv[3]); i++){
+        for (int i = 0; i < atoi(argv[3]); i++) {   //  Repeat the parent process to match the number of transactions of every child
          
-            sem_wait(semaphore1);
-            rewind(X);
-            returned_line(X, shared_stuff->written_by_you, buffer);
-            strcpy(shared_stuff->some_text, buffer);
-            sem_post(semaphore2);
+            sem_wait(semaphore1);   // Wait for child to request a line
+            rewind(X);  // Rewind my file to pass it to my function
+            returned_line(X, shared_stuff->written_by_you, buffer);     // Call function to load to buffer the requested line 
+            strcpy(shared_stuff->some_text, buffer);    // Copy line to my shared memory
+            sem_post(semaphore2);   // Signal child once i reply his request
         }
     }
 
-    for (int i = 0; i < K; i++) { 
+    for (int i = 0; i < K; i++) {   // Wait for every Child to end 
         wait(NULL);
     }
+
+    // Unlink and close semaphores
 
     if (sem_unlink(SEM_NAME1) < 0) {
         perror("sem_unlink(3) failed");
@@ -154,11 +154,14 @@ int main(int argc, char **argv) {
     sem_close(semaphore1);
     sem_close(semaphore2);
 
+    // Detach shared memory
+
     if (shmdt(shared_memory) == -1) {
 		fprintf(stderr, "shmdt failed\n");
 		exit(EXIT_FAILURE);
 	}
 
-    fclose(X);
-    return 0;
+    fclose(X);  // Close my file
+
+    exit(EXIT_SUCCESS);
 }
