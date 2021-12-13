@@ -91,13 +91,14 @@ int main(int argc, char **argv) {
         printf("Child %d received line : %s", getpid(), shared_stuff->some_text);
         sem_post(semaphore2);   // We post so the value of semaphore2 is 1 and the next transaction/child start immediatly
     }
-    sem_post(semaphore3);   // Unlock
 
     // Stop the clock when child process end and print results
 
     clock_t end = clock();
     double time= ((double)end - (double)begin)/CLOCKS_PER_SEC;
     printf("Average serve time for child %d : %f\n", getpid(), time);
+
+    sem_post(semaphore3);   // Unlock
 
     // Close semaphores
 
