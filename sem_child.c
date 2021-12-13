@@ -81,8 +81,9 @@ int main(int argc, char **argv) {
 
     // Repeat the loop to match the number of transactions
 
-    sem_wait(semaphore3);   // Lock
-    for (int i = 0; i < tran; i++) {        
+
+    for (int i = 0; i < tran; i++) {   
+        sem_wait(semaphore3);   // Lock
         sem_wait(semaphore2);   // Lock transaction
         shared_stuff->written_by_you = 1 + (rand() % num_of_lines);
         printf("Child %d requested line %d from Parent \n", getpid(), shared_stuff->written_by_you);
@@ -90,6 +91,7 @@ int main(int argc, char **argv) {
         sem_wait(semaphore2);   // Wait the response from parent
         printf("Child %d received line : %s", getpid(), shared_stuff->some_text);
         sem_post(semaphore2);   // We post so the value of semaphore2 is 1 and the next transaction/child start immediatly
+        sem_post(semaphore3);   // Unlock
     }
 
     // Stop the clock when child process end and print results
@@ -97,8 +99,6 @@ int main(int argc, char **argv) {
     clock_t end = clock();
     double time= ((double)end - (double)begin)/CLOCKS_PER_SEC;
     printf("Average serve time for child %d : %f\n", getpid(), time);
-
-    sem_post(semaphore3);   // Unlock
 
     // Close semaphores
 
