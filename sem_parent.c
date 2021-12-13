@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     int K = atoi(argv[2]);  // Number of kids
   
     int lines_of_file = file_lines(X);  // Find file number of lines
-    char str[10];
+    char str[10];   // Variable to convert integer
     sprintf(str, "%d", lines_of_file);  // Convert integer to string and pass it as an argument to child process
 
     char* args[] = {str, argv[3], NULL};    // Arguments file child process
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "shmat failes\n");
         exit(EXIT_FAILURE);
     }
-    printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
+    //printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
 
     shared_stuff = (struct shared_use_st *)shared_memory;
 
@@ -123,11 +123,12 @@ int main(int argc, char **argv) {
                 exit(EXIT_FAILURE);
             }
         }
-       
-        //  Parent Process 
-         
-        for (int i = 0; i < atoi(argv[3]); i++) {   //  Repeat the parent process to match the number of transactions of every child
-         
+    }
+
+    //  Parent Process 
+
+    for (int j = 0; j < K; j++) {   // Repeat the parent process for all kids
+        for (int i = 0; i < atoi(argv[3]); i++) {   // Repeat the parent process to match the number of transactions of every child
             sem_wait(semaphore1);   // Wait for child to request a line
             rewind(X);  // Rewind my file to pass it to my function
             returned_line(X, shared_stuff->written_by_you, buffer);     // Call function to load to buffer the requested line 

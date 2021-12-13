@@ -70,28 +70,28 @@ int main(int argc, char **argv) {
         fprintf(stderr, "shmat failes\n");
         exit(EXIT_FAILURE);
     }
-    printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
+    //printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
 
     shared_stuff = (struct shared_use_st *)shared_memory;
 
     // Start clock and set srand
 
     clock_t begin = clock();
-    srand(time(0) + getpid());
+    srand(getpid());
 
     // Repeat the loop to match the number of transactions
 
+    sem_wait(semaphore3);   // Lock
     for (int i = 0; i < tran; i++) {        
-        sem_wait(semaphore3);   // lock
-        sem_wait(semaphore2);   // 
+        sem_wait(semaphore2);   // Lock transaction
         shared_stuff->written_by_you = 1 + (rand() % num_of_lines);
         printf("Child %d requested line %d from Parent \n", getpid(), shared_stuff->written_by_you);
         sem_post(semaphore1);   // Post when child make his request
         sem_wait(semaphore2);   // Wait the response from parent
         printf("Child %d received line : %s", getpid(), shared_stuff->some_text);
         sem_post(semaphore2);   // We post so the value of semaphore2 is 1 and the next transaction/child start immediatly
-        sem_post(semaphore3);   // unlock
     }
+    sem_post(semaphore3);   // Unlock
 
     // Stop the clock when child process end and print results
 
