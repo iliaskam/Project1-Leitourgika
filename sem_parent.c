@@ -113,7 +113,10 @@ int main(int argc, char **argv) {
     // Create K number of child processes
 
     for (int i = 0; i < K; i++) {
-        pids[i] = fork();
+        if ((pids[i] = fork()) < 0) {
+            perror("fork(2) failed");
+            exit(EXIT_FAILURE);
+        }
 
         //  Child Process 
 
